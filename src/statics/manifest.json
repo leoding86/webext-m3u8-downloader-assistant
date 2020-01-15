@@ -1,0 +1,51 @@
+{
+    "background": {
+        "scripts": [
+            "lib/babel-polyfill.min.js",
+            "backgrounds/background.js"
+        ]
+    },
+    "browser_action": {
+        "default_icon": "icon128.png",
+        "default_title": "__MSG_extName__",
+        "default_popup": "popup_page/index.html"
+    },
+    "short_name": "M3U8DL",
+    "content_security_policy": "script-src 'self'; object-src 'self'",
+    "default_locale": "en",
+    "description": "__MSG_extDescription__",
+    "icons": {
+        "128": "icon128.png"
+    },
+    "manifest_version": 2,
+    "name": "__MSG_extName__",
+    "permissions": [
+        "webRequest",
+        "webRequestBlocking",
+        "storage",
+        "downloads",
+        "tabs",
+        "https://*/",
+        "http://*/"
+    ],
+    "optional_permissions": [
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "*://*/*"
+            ],
+            "css": [
+                "content_scripts/static/css/app.css"
+            ],
+            "js": [
+                "lib/babel-polyfill.min.js",
+                "lib/vue.min.js",
+                "content_scripts/app.js"
+            ]
+        }
+    ],
+    "version": "0.0.1",
+    "version_name": "0.0.1",
+    "options_page": "options_page/index.html"
+}
