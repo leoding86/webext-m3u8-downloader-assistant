@@ -37,6 +37,11 @@ export default {
     },
 
     onRuntimeMessage(message, sender) {
+      /**
+       * Initialize context
+       */
+      this.context = [];
+
       if (message.status === 1) {
         try {
           let adapter = AdapterFactory.getAdatper(message.data);
