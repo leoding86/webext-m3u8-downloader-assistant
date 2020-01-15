@@ -89,14 +89,14 @@ class Adapter {
         let jsonData = JSON.parse(message.data.responseText);
 
         if (jsonData && jsonData.status === 'ok') {
-          const url = {
+          const data = {
             url: jsonData.info,
-            title: context.url
+            title: context.title
           }
 
           this.dispatchLoad({
             type: stream.type,
-            url: 'm3u8-downloader://' + encodeURIComponent(JSON.stringify(url))
+            url: 'm3u8-downloader://' + encodeURIComponent(JSON.stringify(data))
           });
         } else {
           this.dispatchError(Error('Invalid response data'));
