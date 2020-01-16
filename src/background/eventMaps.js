@@ -1,7 +1,8 @@
 export default {
   webRequest: {
     onBeforeSendHeaders: [
-      'onWebRequestBeforeSendHeadersMgtv'
+      'onWebRequestBeforeSendHeadersMgtv',
+      'onWebRequestBeforeSendHeadersIqiyi'
     ]
   },
 

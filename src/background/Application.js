@@ -19,7 +19,8 @@ class Application {
   webRequestEventGlobalFilter() {
     return {
       urls: [
-        "*://*.mgtv.com/*"
+        "*://*.mgtv.com/*",
+        "*://*.iqiyi.com/*"
       ]
     };
   }
@@ -32,15 +33,7 @@ class Application {
     ];
   }
 
-  onWebRequestBeforeSendHeadersMgtvFilter() {
-    return {
-      urls: [
-        "*://*.api.mgtv.com/player/getSource*"
-      ]
-    };
-  }
-
-  onWebRequestBeforeSendHeadersMgtv(details) {
+  overrideHeadersAndSendMessage(details, headers) {
     let needSendMessage = true;
 
     this.sourcePool.set(details.tabId, details.url);
@@ -67,14 +60,47 @@ class Application {
       });
     }
 
-    details.requestHeaders.push({
-      name: 'Referer',
-      value: 'https://www.mgtv.com/'
+    if (!Array.isArray(headers)) {
+      headers = typeof headers === 'object' ? [headers] : [];
+    }
+
+    headers.forEach(header => {
+      details.requestHeaders.push(header);
     });
 
     return {
       requestHeaders: details.requestHeaders
     };
+  }
+
+  onWebRequestBeforeSendHeadersMgtvFilter() {
+    return {
+      urls: [
+        "*://*.api.mgtv.com/player/getSource*"
+      ]
+    };
+  }
+
+  onWebRequestBeforeSendHeadersMgtv(details) {
+    return this.overrideHeadersAndSendMessage(details, {
+      name: 'Referer',
+      value: 'https://www.mgtv.com/'
+    });
+  }
+
+  onWebRequestBeforeSendHeadersIqiyiFilter() {
+    return {
+      urls: [
+        "*://cache.video.iqiyi.com/dash*"
+      ]
+    }
+  }
+
+  onWebRequestBeforeSendHeadersIqiyi(details) {
+    return this.overrideHeadersAndSendMessage(details, {
+      name: 'Referer',
+      value: 'https://www.iqiyi.com/'
+    });
   }
 
   onTabsRemoved(tabId, removeInfo) {
