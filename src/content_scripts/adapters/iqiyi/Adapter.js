@@ -29,7 +29,7 @@ class Adapter {
     let time = Date.now() - 1000;
 
     let url = this.data.source.replace(/bid=\d+/, `bid=${video.bid}`)
-       .replace(/[^t]vid=[a-z\d]+/i, `vid=${video.vid}`)
+       .replace(/&vid=[a-z\d]+/i, `&vid=${video.vid}`)
        .replace(/mt=\d+/, `mt=${time}`)
        .replace(/&vf=[a-z\d]+/i, '')
        .replace(/authKey=[a-z\d]+/i, 'authKey=' + md5(md5('') + time + this.data.aid));
@@ -37,24 +37,81 @@ class Adapter {
     let signStr = url.replace(/^https?:\/{2}[^/]+/, '');
 
     url += `&vf=${Cmd5.cmd5x(signStr)}`;
+
+    return url;
+  }
+
+  getVideoInfo(video) {
+    return new Promise((resolve, reject) => {
+      let dashUrl = this.buildDashUrl(video);
+
+      let xhr = new XMLHttpRequest();
+      xhr.open('GET', dashUrl);
+      xhr.setRequestHeader('X-Webextension', true);
+      xhr.onload = event => {
+        try {
+          let responseJson = JSON.parse(xhr.responseText);
+
+          if (responseJson && responseJson.code === 'A00000' && responseJson.data && responseJson.data.program && Array.isArray(responseJson.data.program.video)) {
+            responseJson.data.program.video.forEach(v => {
+              if (v.vid === video.vid) {
+                resolve(v);
+              } else {
+                return;
+              }
+            });
+          }
+        } catch (e) {
+          reject(e);
+        }
+      };
+
+      xhr.onerror = event => {
+        reject(Error('Request error'));
+      };
+
+      xhr.ontimeout = event => {
+        reject(Error('Request timeout'));
+      };
+
+      xhr.send(null);
+    });
   }
 
   buildStreamsInfo(videos) {
-    let channels = [];
+    return new Promise((resolve, reject) => {
+      let channels = [];
+      let waitCount = 0;
 
-    videos.forEach(video => {
-      let stream = {
-        type: 'unkown'
-      };
+      videos.forEach(video => {
+        let stream = {
+          type: 'unkown',
+          size: video.vsize
+        };
 
-      if (video.m3u8 && video.m3u8.length > 0) {
-        stream.m3u8 = video.m3u8;
-      } else {
-        stream.dashUrl = this.buildDashUrl(video);
-      }
+        if (video.m3u8 && video.m3u8.length > 0) {
+          stream.type = video.scrsz;
+          stream.m3u8 = video.m3u8;
+        } else {
+          waitCount++;
+
+          this.getVideoInfo(video).then(data => {
+            stream.m3u8 = data.m3u8;
+            stream.type = data.scrsz;
+          }).catch(error => {
+            stream.type = 'invalidable'
+          }).finally(() => {
+            waitCount--;
+
+            if (waitCount <= 0) {
+              resolve(channels);
+            }
+          });
+        }
+
+        channels.push(stream);
+      });
     });
-
-    debugger;
   }
 
   getStreams() {
@@ -73,9 +130,7 @@ class Adapter {
             this.data.aid = jsonData.data.aid;
 
             if (jsonData.data && jsonData.data.program && Array.isArray(jsonData.data.program.video)) {
-              let streams = this.buildStreamsInfo(jsonData.data.program.video);
-
-              resolve(streams);
+              resolve(this.buildStreamsInfo(jsonData.data.program.video));
             } else {
               reject(Error('Invalid response data'));
             }
@@ -111,39 +166,16 @@ class Adapter {
    * @param {{type: String, urls: Array.<String>}} stream
    */
   getDownloadUrl(stream) {
-    let port = this.browser.runtime.connect();
+    let context = Magic.getCSvar('window.Q.PageInfo.playPageInfo', 'object');
 
-    let context = Magic.getCSvar('window.VIDEOINFO', 'object');
+    let data = {
+      title: context.tvName,
+      m3u8: stream.m3u8
+    };
 
-    port.onMessage.addListener(message => {
-      try {
-        let jsonData = JSON.parse(message.data.responseText);
-
-        if (jsonData && jsonData.status === 'ok') {
-          const url = {
-            url: jsonData.info,
-            title: context.url
-          }
-
-          this.dispatchLoad({
-            type: stream.type,
-            url: 'm3u8-downloader://' + encodeURIComponent(JSON.stringify(url))
-          });
-        } else {
-          this.dispatchError(Error('Invalid response data'));
-        }
-      } catch (error) {
-        this.dispatchError(error);
-      } finally {
-        port.disconnect();
-      }
-    });
-
-    port.postMessage({
-      action: 'request',
-      options: {
-        url: stream.urls[0]
-      }
+    this.dispatchLoad({
+      type: stream.type,
+      url: 'm3u8-downloader://' + encodeURIComponent(JSON.stringify(data))
     });
   }
 
@@ -158,7 +190,7 @@ class Adapter {
 
   fetchDownloadContext() {
     this.getStreams().then(streams => {
-      // return this.getDownloadUrls(streams);
+      return this.getDownloadUrls(streams);
     })
     .catch(error => {
       this.dispatchError(error);
