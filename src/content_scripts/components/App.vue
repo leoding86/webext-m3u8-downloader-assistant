@@ -4,8 +4,10 @@
       <div v-for="item in context"
         :key="item.url"
       >
-        <a :href="'#' + item.type"
+        <a
           @click="copy(item.url)"
+          @click.native.prevent="true"
+          @click.native.stop="true"
         >{{ item.type }}</a>
       </div>
     </div>
@@ -72,6 +74,7 @@ export default {
   width: 0;
   height: 0;
   overflow: visible;
+  z-index: 999;
 }
 
 .app__container {
